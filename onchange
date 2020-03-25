@@ -1,0 +1,48 @@
+#!/bin/sh
+#deps: ls cut getopts
+#desc: Run command on resource change
+#usage: -r resource -c command [-f] [-i interval=1]
+
+
+interval=1
+while getopts "r:c:i:f" flag
+do
+  case $flag in
+    c) cmd=$OPTARG ;;
+    f) flush=1 ;;
+    r)
+      if [ "$(echo "$OPTARG" | cut -b 1)" != ':' ]
+      then watch="echo $OPTARG"
+      else watch=$(echo "$OPTARG" | cut -b 2-)
+      fi
+      ;;
+    i)
+      i=$(printf "%d" "$OPTARG" 2>/dev/null)
+      if [ "$i" -gt 0 ]
+      then interval=$OPTARG
+      else echo "$0: flag -i interval must be greater than 0" >&2 && exit
+      fi
+      ;;
+  esac
+done
+
+[ -z "$watch" ] && echo "$0: flag -r resource is mandatory" >&2
+[ -z "$cmd" ] && echo "$0: flag -c command is mandatory" >&2
+([ -z "$cmd" ] || [ -z "$watch" ]) && exit
+
+
+getstat() { ls -lR --time-style=full-iso $(eval "$watch") | tr '\n' ' '; }
+run() {
+  [ "$flush" ] && printf '\033[2J\033[;H'
+  sleep .1
+  printf "$(date +'%F %T')\n> $cmd\n" && eval "$cmd"
+}
+
+run
+while true
+do
+  stat=$(getstat)
+  sleep "$interval"
+  newstat=$(getstat)
+  [ "$newstat" != "$stat" ] && run
+done
