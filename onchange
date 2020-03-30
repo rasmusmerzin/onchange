@@ -1,10 +1,10 @@
 #!/bin/sh
 #deps: ls cut getopts
 #desc: Run command on resource change
-#usage: -r resource -c command [-f] [-i interval=1]
+#usage: -r resource -c command [-f] [-i interval=500]
 
 
-interval=1
+interval=500
 while getopts "r:c:i:f" flag
 do
   case $flag in
@@ -37,12 +37,20 @@ run() {
   sleep .1
   printf "$(date +'%F %T')\n> $cmd\n" && eval "$cmd"
 }
+wheelchars='| / - \'
+wheelchars='. .. ... '
+wheelindex=0
+wheeldraw() {
+  wheelindex=$((wheelindex%4+1))
+  printf '\33[999D%s\33[K' "$(echo "$wheelchars" | cut -d ' ' -f $wheelindex)"
+}
 
 run
 while true
 do
   stat=$(getstat)
-  sleep "$interval"
+  sleep $((interval/1000)).$((interval%1000))
   newstat=$(getstat)
   [ "$newstat" != "$stat" ] && run
+  wheeldraw
 done
