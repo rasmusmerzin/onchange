@@ -35,9 +35,9 @@ getstat() { ls -lR --time-style=full-iso $(eval "$watch") | tr '\n' ' '; }
 run() {
   [ "$flush" ] && printf '\033[2J\033[;H'
   sleep .1
-  printf "$(date +'%F %T')\n> $cmd\n" && eval "$cmd"
+  printf "\33[999D$(date +'%F %T')\n> $cmd\n" && eval "$cmd"
+  echo
 }
-wheelchars='| / - \'
 wheelchars='. .. ... '
 wheelindex=0
 wheeldraw() {
