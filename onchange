@@ -1,15 +1,13 @@
 #!/bin/sh
-#deps: ls cut getopts
-#desc: Run command on resource change
-#usage: -r resource -c command [-f] [-i interval=500]
 
 
 interval=500
-while getopts "r:c:i:f" flag
+while getopts "r:c:i:fj" flag
 do
   case $flag in
     c) cmd=$OPTARG ;;
     f) flush=1 ;;
+    j) job=1 ;;
     r)
       if [ "$(echo "$OPTARG" | cut -b 1)" != ':' ]
       then watch="echo $OPTARG"
@@ -23,26 +21,38 @@ do
       else echo "$0: flag -i interval must be greater than 0" >&2 && exit
       fi
       ;;
+    *) echo "$0: unknown flag '-$flag'" >&2 && exit ;;
   esac
 done
 
 [ -z "$watch" ] && echo "$0: flag -r resource is mandatory" >&2
 [ -z "$cmd" ] && echo "$0: flag -c command is mandatory" >&2
-([ -z "$cmd" ] || [ -z "$watch" ]) && exit
+{ [ -z "$cmd" ] || [ -z "$watch" ]; } && exit
 
+
+killjobs() {
+  pids=$(jobs -p)
+  [ -n "$pids" ] && for p in $pids; do
+    echo "> kill $p"
+    kill "$p"
+  done
+}
 
 getstat() { ls -lR --time-style=full-iso $(eval "$watch") | tr '\n' ' '; }
+
 run() {
-  [ "$flush" ] && printf '\033[2J\033[;H'
+  [ "$flush" ] && printf '\033[2J\033[H'
   sleep .1
-  printf "\33[999D$(date +'%F %T')\n> $cmd\n" && eval "$cmd"
+  if [ -n "$job" ]
+  then
+    killjobs
+    eval "$cmd" & jobid=$!
+    printf "\33[999D%s\n[%s]> %s" "$(date +'%F %T')" "$jobid" "$cmd"
+  else
+    printf "\33[999D%s\n> %s" "$(date +'%F %T')" "$cmd"
+    eval "$cmd"
+  fi
   echo
-}
-wheelchars='. .. ... '
-wheelindex=0
-wheeldraw() {
-  wheelindex=$((wheelindex%4+1))
-  printf '\33[999D%s\33[K' "$(echo "$wheelchars" | cut -d ' ' -f $wheelindex)"
 }
 
 run
@@ -52,5 +62,4 @@ do
   sleep $((interval/1000)).$((interval%1000))
   newstat=$(getstat)
   [ "$newstat" != "$stat" ] && run
-  wheeldraw
 done

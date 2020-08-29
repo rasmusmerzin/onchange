@@ -1,5 +1,5 @@
 onchange - run command on resource change
 
-usage: -r resource -c command [-f] [-i interval=1]
+usage: -r resource -c command [-f] [-j] [-i interval=1]
 
-dependencies: ls cut getopts
+requirements: getopts ls cut grep awk kill jobs
